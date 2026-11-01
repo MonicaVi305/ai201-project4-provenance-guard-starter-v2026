@@ -44,7 +44,7 @@
 3. `detector.model_signal(text)` runs local GPT-2, measures perplexity, and maps predictability to a 0–1 score; higher means more AI-like. It considers at most 400 tokens.
 4. `stylometry.style_signal(text)` measures sentence-length variation, vocabulary repetition, and punctuation density, then returns a 0–1 score in the same direction (higher means more AI-like).
 5. `scoring.combine_signals(model_score, style_score)` combines the scores. The rule is an equal-weight average, pulled back toward 0.5 when the two signals disagree by more than 0.35 (see The combining rule).
-6. `scoring.score_to_label(combined_score)` maps scores to a guess and reader-facing label: `<= 0.35` human, `> 0.35` and `< 0.65` unsure, `>= 0.65` AI. The label strings are still placeholders in code.
+6. `scoring.score_to_label(combined_score)` maps scores to a guess and reader-facing label: `<= 0.35` human, `> 0.35` and `< 0.65` unsure, `>= 0.65` AI. The label text lives in `scoring.py` (see Label Variants).
 7. The route creates a UUID `content_id`, appends the decision and its scores to the audit log, and returns the decision and identifiers as JSON. 
 
 ---
@@ -102,11 +102,11 @@
 | AI with varied style (the split case) | 0.614 | 0.027 | 0.410 | unsure |
 | ornate AI | 0.544 | 0.620 | 0.582 | unsure |
 
-Clearly AI and clearly human land `0.55` apart (0.769 against 0.218). Lightly edited AI is still caught. The formal human text is "unsure", not accused. The row to worry about is the plain, conventional human text: **both signals read it as AI-like**, so the average agrees with them and the split rule never fires. That is a false positive this design cannot fix by re-weighting; it needs a better signal, or a wider unsure band in Milestone 5.
+Clearly AI and clearly human land `0.55` apart (0.769 against 0.218). Lightly edited AI is still caught. The formal human text is "unsure", not accused. The row to worry about is the plain, conventional human text: **both signals read it as AI-like**, so the average agrees with them and the split rule never fires. That is a false positive this design cannot fix by re-weighting; it needs a better signal, or a wider unsure band, which I have not done.
 
 ### False-positive trace
 
-A real writer uses plain, conventional language. In my calibration run, an ordinary paragraph about working from home (every sentence of similar length, no unusual punctuation) scored `0.744` on the model signal and `0.665` on the style signal, so the combined score was `0.705` and the guess was `ai`. Because both signals agree, the split rule does not rescue it. The reader-facing label text is still a placeholder (Milestone 5); the intended wording is: “We think this text was likely written by AI. This is an estimate, not proof of authorship. If you wrote it, you can appeal this decision.” The writer can submit `POST /appeal` with the returned `content_id` and an explanation; the service records an append-only appeal and marks the item `under_review`. `/appeal` is not built yet (Milestone 5).
+A real writer uses plain, conventional language. In my calibration run, an ordinary paragraph about working from home (every sentence of similar length, no unusual punctuation) scored `0.744` on the model signal and `0.665` on the style signal, so the combined score was `0.705` and the guess was `ai`. Because both signals agree, the split rule does not rescue it. The writer would see the high-confidence AI label from Label Variants: “This may have been written with AI. This is our best guess, not proof, and we can get it wrong. If you wrote it yourself, you can appeal and ask a person to take another look.” The writer can submit `POST /appeal` with the returned `content_id` and an explanation; the service records an append-only appeal and marks the item `under_review`.
 
 ### Endpoint contracts
 
@@ -156,16 +156,14 @@ On success, return HTTP 200 with `{"ok": true, "content_id": "...", "status": "u
 
 | Label | Score range | The exact text a reader sees |
 |---|---|---|
-| high-confidence human |  |  |
-| unsure |  |  |
-| high-confidence AI |  |  |
+| high-confidence human | 0.00 – 0.35 | We think this was probably written by a person. This is an estimate, not a guarantee. |
+| unsure | 0.35 – 0.65 | We can't tell whether this was written by a person or by AI. That is not a judgment about you or your work. Our checks just didn't point clearly one way. If you'd like a person to look at it, you can ask for a review. |
+| high-confidence AI | 0.65 – 1.00 | This may have been written with AI. This is our best guess, not proof, and we can get it wrong. If you wrote it yourself, you can appeal and ask a person to take another look. |
+
+All three are reachable: in testing, a vivid human text scored `0.218` (human), a formal human text `0.510` (unsure), and a clearly AI text `0.769` (AI). The boundaries are inclusive (`<= 0.35` is human, `>= 0.65` is AI), matching `scoring.py`.
 
 **Why I worded the "unsure" one this way:**
-<!-- It's the hardest of the three. It has to admit uncertainty without
-     sounding like an accusation, because the person reading it may well have
-     written every word themselves. -->
-
-
+The person reading it may have written every word, so it opens with what we can't tell, then says outright that this is not a judgment about them or their work, and puts the doubt on our checks rather than on the writer. It ends with an offer of a human review so "unsure" is never a dead end. I avoided the words "score", "threshold" and "confidence".
 
 ---
 
@@ -181,65 +179,54 @@ On success, return HTTP 200 with `{"ok": true, "content_id": "...", "status": "u
      two off the response, so leaving them out costs you next unit's
      diagnostics. -->
 
-_Milestone 3 state: the model signal is real; `style_score`, `combined_score` and the label are still placeholders (Milestones 4 and 5)._
-
 ```bash
-$ curl.exe -X POST http://127.0.0.1:5000/submit -H "Content-Type: application/json" -d '{"text": "My grandmothers kitchen smelled like burnt toast and Pall Malls, and she never once measured anything. Dad swore the pierogi were better when she was mad at him.", "creator_id": "writer-2"}'
+$ curl.exe -X POST http://127.0.0.1:5055/submit -H "Content-Type: application/json" -d '{"text": "In today'"'"'s fast-paced digital landscape, effective communication plays a crucial role in organizational success. Furthermore, leveraging innovative solutions can significantly enhance productivity and foster collaboration across diverse teams. ...", "creator_id": "m5-clearly_ai"}'
 ```
 
 ```json
 {
-  "confidence": 0.1463,
-  "content_id": "cb2dd690-8e45-48e1-919c-239c8ad99a98",
-  "guess": "unsure",
-  "label": "PLACEHOLDER — the real label arrives in Milestone 5.",
-  "model_score": 0.1463
+  "combined_score": 0.7692,
+  "confidence": 0.7692,
+  "content_id": "9d521991-f082-4bf5-9f0b-3de3df5c8807",
+  "guess": "ai",
+  "label": "This may have been written with AI. This is our best guess, not proof, and we can get it wrong. If you wrote it yourself, you can appeal and ask a person to take another look.",
+  "model_score": 0.7885,
+  "reasoning": "Model signal 0.7885, style signal 0.75, combined 0.7692 (higher means more AI-like).",
+  "style_score": 0.75
 }
 ```
 
-A bad input (empty text) and a too-short one:
-
-```bash
-$ curl.exe -X POST http://127.0.0.1:5000/submit -H "Content-Type: application/json" -d '{"text": "", "creator_id": "w"}'
-```
-
-```json
-{"error": "invalid_request", "message": "'text' is required and must be a non-empty string."}   (HTTP 400)
-```
-
-```json
-{"error": "text_too_short", "message": "Text is too short to score — a few sentences at least."}   (HTTP 422, for text "hi")
-```
+(The text is shortened above; the real request sent the full paragraph from my calibration set. Bad input returns 400, 413 or 422 as in the endpoint contract.)
 
 **An appeal**
 
-_Not built yet — `/appeal` arrives in Milestone 5._
-
 ```bash
-$ curl -X POST http://127.0.0.1:5000/appeal \
-  -H "Content-Type: application/json" \
-  -d '{"content_id": "...", "reasoning": "..."}'
+$ curl.exe -X POST http://127.0.0.1:5055/appeal -H "Content-Type: application/json" -d '{"content_id": "9d521991-f082-4bf5-9f0b-3de3df5c8807", "reasoning": "I wrote this myself for a marketing class. I tend to write in a formal style."}'
 ```
- 
-```json
 
+```json
+{"content_id": "9d521991-f082-4bf5-9f0b-3de3df5c8807", "ok": true, "status": "under_review"}
 ```
+
+An unknown `content_id` returns `{"error": "not_found", ...}` with HTTP 404, and a missing `reasoning` returns HTTP 400.
 
 **What the log shows afterwards**
 
 ```bash
-$ curl.exe "http://127.0.0.1:5000/log?limit=5"
+$ curl.exe "http://127.0.0.1:5055/log?limit=2"
 ```
 
 ```json
 {
   "count": 2,
   "entries": [
-    {"timestamp": "2026-11-01T20:42:23+00:00", "content_id": "36c0bea5-8304-421e-b521-af2e0f072b92", "creator_id": "writer-1", "guess": "unsure", "model_score": 0.6101, "style_score": null, "combined_score": null, "label": "PLACEHOLDER — the real label arrives in Milestone 5.", "status": "decided"},
-    {"timestamp": "2026-11-01T20:42:23+00:00", "content_id": "cb2dd690-8e45-48e1-919c-239c8ad99a98", "creator_id": "writer-2", "guess": "unsure", "model_score": 0.1463, "style_score": null, "combined_score": null, "label": "PLACEHOLDER — the real label arrives in Milestone 5.", "status": "decided"}
+    {"timestamp": "2026-11-01T21:31:05+00:00", "content_id": "9d521991-f082-4bf5-9f0b-3de3df5c8807", "creator_id": "m5-clearly_ai", "guess": "ai", "model_score": 0.7885, "style_score": 0.75, "combined_score": 0.7692, "label": "This may have been written with AI. This is our best guess, not proof, and we can get it wrong. If you wrote it yourself, you can appeal and ask a person to take another look.", "status": "decided"},
+    {"timestamp": "2026-11-01T21:31:10+00:00", "content_id": "9d521991-f082-4bf5-9f0b-3de3df5c8807", "creator_id": "m5-clearly_ai", "event": "appeal", "status": "under_review", "reasoning": "I wrote this myself for a marketing class. I tend to write in a formal style."}
   ]
 }
 ```
+
+The log is append-only: the original decision stays as `decided` and the appeal sits after it with status `under_review`.
 
 ---
 
