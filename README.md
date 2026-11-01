@@ -168,17 +168,39 @@ On success, return HTTP 200 with `{"ok": true, "content_id": "...", "status": "u
      two off the response, so leaving them out costs you next unit's
      diagnostics. -->
 
+_Milestone 3 state: the model signal is real; `style_score`, `combined_score` and the label are still placeholders (Milestones 4 and 5)._
+
 ```bash
-$ curl -X POST http://127.0.0.1:5000/submit \
-  -H "Content-Type: application/json" \
-  -d '{"text": "...", "creator_id": "..."}'
+$ curl.exe -X POST http://127.0.0.1:5000/submit -H "Content-Type: application/json" -d '{"text": "My grandmothers kitchen smelled like burnt toast and Pall Malls, and she never once measured anything. Dad swore the pierogi were better when she was mad at him.", "creator_id": "writer-2"}'
 ```
 
 ```json
+{
+  "confidence": 0.1463,
+  "content_id": "cb2dd690-8e45-48e1-919c-239c8ad99a98",
+  "guess": "unsure",
+  "label": "PLACEHOLDER — the real label arrives in Milestone 5.",
+  "model_score": 0.1463
+}
+```
 
+A bad input (empty text) and a too-short one:
+
+```bash
+$ curl.exe -X POST http://127.0.0.1:5000/submit -H "Content-Type: application/json" -d '{"text": "", "creator_id": "w"}'
+```
+
+```json
+{"error": "invalid_request", "message": "'text' is required and must be a non-empty string."}   (HTTP 400)
+```
+
+```json
+{"error": "text_too_short", "message": "Text is too short to score — a few sentences at least."}   (HTTP 422, for text "hi")
 ```
 
 **An appeal**
+
+_Not built yet — `/appeal` arrives in Milestone 5._
 
 ```bash
 $ curl -X POST http://127.0.0.1:5000/appeal \
@@ -193,11 +215,17 @@ $ curl -X POST http://127.0.0.1:5000/appeal \
 **What the log shows afterwards**
 
 ```bash
-$ curl "http://127.0.0.1:5000/log?limit=3"
+$ curl.exe "http://127.0.0.1:5000/log?limit=5"
 ```
 
 ```json
-
+{
+  "count": 2,
+  "entries": [
+    {"timestamp": "2026-11-01T20:42:23+00:00", "content_id": "36c0bea5-8304-421e-b521-af2e0f072b92", "creator_id": "writer-1", "guess": "unsure", "model_score": 0.6101, "style_score": null, "combined_score": null, "label": "PLACEHOLDER — the real label arrives in Milestone 5.", "status": "decided"},
+    {"timestamp": "2026-11-01T20:42:23+00:00", "content_id": "cb2dd690-8e45-48e1-919c-239c8ad99a98", "creator_id": "writer-2", "guess": "unsure", "model_score": 0.1463, "style_score": null, "combined_score": null, "label": "PLACEHOLDER — the real label arrives in Milestone 5.", "status": "decided"}
+  ]
+}
 ```
 
 ---
