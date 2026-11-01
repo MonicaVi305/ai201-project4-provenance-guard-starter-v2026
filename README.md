@@ -40,12 +40,12 @@
      Six or seven steps — this is the trace you wrote in Milestone 1. -->
 
 1. A client sends `POST /submit` with JSON containing the text and a `creator_id`.
-2. The route extracts and validates those fields. This validation is part of the contract, but the route is currently a TODO.
+2. The route extracts and validates those fields (400 for missing or empty, 413 over 20,000 characters, 422 too short for the model).
 3. `detector.model_signal(text)` runs local GPT-2, measures perplexity, and maps predictability to a 0–1 score; higher means more AI-like. It considers at most 400 tokens.
-4. `stylometry.style_signal(text)` measures sentence-length variation, vocabulary repetition, and punctuation density, then returns a 0–1 score in the same direction. These functions are currently stubs; the style score is always `0.5`.
-5. `scoring.combine_signals(model_score, style_score)` combines the scores. The current configured rule is an equal-weight average: `0.5 * model_score + 0.5 * style_score`.
+4. `stylometry.style_signal(text)` measures sentence-length variation, vocabulary repetition, and punctuation density, then returns a 0–1 score in the same direction (higher means more AI-like).
+5. `scoring.combine_signals(model_score, style_score)` combines the scores. The rule is an equal-weight average, pulled back toward 0.5 when the two signals disagree by more than 0.35 (see The combining rule).
 6. `scoring.score_to_label(combined_score)` maps scores to a guess and reader-facing label: `<= 0.35` human, `> 0.35` and `< 0.65` unsure, `>= 0.65` AI. The label strings are still placeholders in code.
-7. The route creates a UUID `content_id`, appends the decision and its scores to the audit log, and returns the decision and identifiers as JSON. The route currently returns HTTP 501 instead.
+7. The route creates a UUID `content_id`, appends the decision and its scores to the audit log, and returns the decision and identifiers as JSON. 
 
 ---
 
@@ -67,33 +67,46 @@
 
 ### Signal two — the style signal
 
-**What it measures:** Surface form rather than meaning: sentence-length spread, type-token ratio (unique words divided by total words), and punctuation density. The intended output is a 0–1 AI-likelihood score.
+**What it measures:** Surface form rather than meaning: sentence-length spread, type-token ratio (unique words divided by total words), and punctuation density. Each measure is flipped so that higher means more AI-like, clipped to 0–1, then averaged with weights spread 0.5, vocabulary 0.25, punctuation 0.25. Punctuation counts expressive marks only (semicolons, colons, dashes, brackets, `!`, `?`, quotes), not commas or full stops. Type-token ratio is measured on the first 100 words so long and short texts compare fairly. The cut-offs that map each measure onto 0–1 are estimates from my hand-picked examples, not fitted values.
 
 **Why that might differ between human and AI writing:** Generated prose can have more even sentence lengths, repeated vocabulary, and conventional punctuation. Human prose may vary more, though these are tendencies rather than reliable authorship rules.
 
-**What it can't see:** It cannot read meaning, verify who wrote the text, or distinguish genuine stylistic variation from edits. Typos, sentence splitting, quotations, or punctuation changes can move the measurements without changing authorship. Type-token ratio also depends on text length. In this starter, the style functions are not implemented yet and `style_signal` returns the constant `0.5`.
+**What it can't see:** It cannot read meaning, verify who wrote the text, or distinguish genuine stylistic variation from edits. Typos, sentence splitting, quotations, or punctuation changes can move the measurements without changing authorship. Type-token ratio also depends on text length. In my calibration run it was also fooled in the other direction: AI text written with short and long sentences, brackets and a question mark scored `0.03` on style.
 
 ### The combining rule
 
 <!-- Write the rule in words, then give the numbers. What happens when the two
      signals disagree? -->
 
-**The rule:** Take the equal-weight average. When the signals disagree, the average moves toward the middle rather than letting either signal decide alone.
+**The rule:** Take the equal-weight average of the two signals. If the signals disagree by more than 0.35, pull that average halfway back toward 0.5, so two methods contradicting each other lands in "unsure" instead of letting one of them accuse or clear a writer alone. The 0.35 gap and the one-half pull are my estimates, not fitted values; they sit in `config.py` as `SPLIT_GAP` and `SPLIT_SHRINK`.
 
-**The numbers:** `combined_score = 0.5 * model_score + 0.5 * style_score`. These are starter defaults, not calibrated weights.
+**The numbers:** `avg = 0.5 * model_score + 0.5 * style_score`. If `abs(model_score - style_score) > 0.35` then `combined_score = 0.5 + (avg - 0.5) * 0.5`, otherwise `combined_score = avg`. Weights `WEIGHT_MODEL_SIGNAL` and `WEIGHT_STYLE_SIGNAL` are both 0.5 in `config.py`.
 
 **Where it lives:** `scoring.py::combine_signals`
 
 <!-- ⚠️ The grader checks your code against that line. If your rule lives
      somewhere else, say where. -->
 
-**A case where my two signals split, and what my rule does with it:** If the model signal is `0.90` and the style signal is `0.10`, the combined score is `0.50`, which falls in the unsure band. That is the intended behavior for disagreement.
+**A case where my two signals split, and what my rule does with it:** An AI-style paragraph written with short punchy sentences, a question mark and brackets ("Honestly? Nobody warns you about this part...") scored `0.614` on the model signal but `0.027` on the style signal, a gap of `0.59`. A plain average would give `0.32`, a confident "human" for AI text. The split rule pulls it to `0.410`, which is "unsure". The style signal is the one that is wrong here, because it only sees the shape of the text, and shape is easy to change.
+
+**Calibration run** (both signals run on the same texts, then through the rule; texts were written for this test):
+
+| Input | Model | Style | Combined | Guess |
+|---|---|---|---|---|
+| clearly AI | 0.788 | 0.750 | 0.769 | ai |
+| clearly human (vivid, personal) | 0.323 | 0.114 | 0.218 | human |
+| plain, conventional human | 0.744 | 0.665 | 0.705 | **ai** |
+| formal human | 0.443 | 0.578 | 0.510 | unsure |
+| lightly edited AI | 0.614 | 0.764 | 0.689 | ai |
+| plain, varied-sentence human | 0.469 | 0.257 | 0.363 | unsure |
+| AI with varied style (the split case) | 0.614 | 0.027 | 0.410 | unsure |
+| ornate AI | 0.544 | 0.620 | 0.582 | unsure |
+
+Clearly AI and clearly human land `0.55` apart (0.769 against 0.218). Lightly edited AI is still caught. The formal human text is "unsure", not accused. The row to worry about is the plain, conventional human text: **both signals read it as AI-like**, so the average agrees with them and the split rule never fires. That is a false positive this design cannot fix by re-weighting; it needs a better signal, or a wider unsure band in Milestone 5.
 
 ### False-positive trace
 
-A real writer uses plain, conventional language. Suppose the model signal gives it `0.90` because the wording is predictable. With the current unfinished style signal at `0.50`, the equal-weight score is `0.70`; because that is at least `0.65`, the system's guess is `ai`. A suitable reader-facing label is: “We think this text was likely written by AI. This is an estimate, not proof of authorship. If you wrote it, you can appeal this decision.” The writer can submit `POST /appeal` with the returned `content_id` and an explanation; the service records an append-only appeal and marks the item `under_review`.
-
-This is an illustrative score, not a measured result: `/submit` currently returns 501, `style_signal` is still constant, and the label text is still a placeholder. The actual model score requires running the local model. Those pieces must be completed before a real writer can receive this response.
+A real writer uses plain, conventional language. In my calibration run, an ordinary paragraph about working from home (every sentence of similar length, no unusual punctuation) scored `0.744` on the model signal and `0.665` on the style signal, so the combined score was `0.705` and the guess was `ai`. Because both signals agree, the split rule does not rescue it. The reader-facing label text is still a placeholder (Milestone 5); the intended wording is: “We think this text was likely written by AI. This is an estimate, not proof of authorship. If you wrote it, you can appeal this decision.” The writer can submit `POST /appeal` with the returned `content_id` and an explanation; the service records an append-only appeal and marks the item `under_review`. `/appeal` is not built yet (Milestone 5).
 
 ### Endpoint contracts
 

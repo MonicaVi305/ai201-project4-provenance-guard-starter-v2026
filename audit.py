@@ -17,6 +17,12 @@ and the one you most want to compare is the one from before the change.
 
     log_decision(content_id=..., creator_id=..., guess="ai", ...)
     entries = read_entries(limit=50)
+
+ python detector.py "some writing here"
+ Loading gpt2 (first run downloads ~550 MB)…
+ `loss_type=None` was set in the config but it is unrecognized. Using the default loss: `ForCausalLMLoss`.
+ perplexity     1637.5
+ model_signal   0.0032   (higher = more likely AI)
 """
 
 import json

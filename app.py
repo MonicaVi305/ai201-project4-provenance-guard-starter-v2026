@@ -30,6 +30,7 @@ from flask import Flask, jsonify, request
 
 import audit
 import config
+import scoring
 
 app = Flask(__name__)
 
@@ -219,6 +220,7 @@ def submit():
                         "message": f"Text is over {config.MAX_TEXT_CHARS} characters."}), 413
 
     import detector
+    import stylometry
 
     try:
         model_score = detector.model_signal(text)
@@ -227,18 +229,24 @@ def submit():
     except detector.DetectorUnavailable as exc:
         return jsonify({"error": "detector_unavailable", "message": str(exc)}), 503
 
+    style_score = stylometry.style_signal(text)
+    combined_score = scoring.combine_signals(model_score, style_score)
     content_id = str(uuid.uuid4())
 
-    # Placeholders until Milestones 4 (style signal, combined score) and 5 (label).
-    guess = "unsure"
-    label = "PLACEHOLDER — the real label arrives in Milestone 5."
-    confidence = model_score  # placeholder: model signal only, no second signal yet
+    # The label text is still a placeholder until Milestone 5.
+    guess, label = scoring.score_to_label(combined_score)
+    reasoning = (
+        f"Model signal {model_score}, style signal {style_score}, "
+        f"combined {combined_score} (higher means more AI-like)."
+    )
 
     audit.log_decision(
         content_id=content_id,
         creator_id=creator_id,
         guess=guess,
         model_score=model_score,
+        style_score=style_score,
+        combined_score=combined_score,
         label=label,
         status="decided",
     )
@@ -247,8 +255,11 @@ def submit():
         "content_id": content_id,
         "guess": guess,
         "label": label,
+        "reasoning": reasoning,
         "model_score": model_score,
-        "confidence": confidence,
+        "style_score": style_score,
+        "combined_score": combined_score,
+        "confidence": combined_score,
     }), 200
 
 

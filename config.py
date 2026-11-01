@@ -58,6 +58,13 @@ MAX_TEXT_CHARS = 20000
 WEIGHT_MODEL_SIGNAL = 0.5
 WEIGHT_STYLE_SIGNAL = 0.5
 
+# When the two signals disagree by more than SPLIT_GAP, the combined score is
+# pulled SPLIT_SHRINK of the way back toward 0.5 ("unsure"): two methods
+# contradicting each other IS uncertainty, and neither should be able to push a
+# text into "AI" or "human" alone. See scoring.combine_signals.
+SPLIT_GAP = 0.35
+SPLIT_SHRINK = 0.5
+
 
 # ─── Thresholds (Milestone 5) ────────────────────────────────────────────────
 # Where one label becomes another. Scores run 0.0 (confidently human) to 1.0
