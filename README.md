@@ -234,15 +234,15 @@ The log is append-only: the original decision stays as `decided` and the appeal 
 
 **Moment 1**
 
-- *What I asked for:*
-- *What came back:*
-- *What I changed:*
+- *What I asked for:* A review of my five acceptance criteria in `criteria.md` (Milestone 2): could someone who couldn't ask me what I meant check each one? I wrote the criteria myself and did not ask for them to be written.
+- *What came back:* Criterion 4 (appeals) was checkable. Criteria 1, 2, 3 and 5 were not: no sample size or trial rule on the false-positive number, two different pass conditions in the score-spread one, no named test set for label coverage, and "a clear error message" instead of status codes. When I filled in my reasons, it also flagged two that were not mine: reason 3 cited results from "your trained model" that I never had, and reason 5 said the 10,000-word limit "is only an example", which contradicted my 20,000-character limit.
+- *What I changed:* Criterion 1 now says 30 texts, at most 1 flagged, in each of three trials. Criterion 2 needs both a 0.40 gap and no overlap, across 10 texts per group. Criterion 3 names a 30-text set. Criterion 5 lists 400, 413 and 422 and the 20,000-character limit. I replaced the reason for 3 with an honest "70% is an estimate" and the reason for 5 with the real limit.
 
 **Moment 2**
 
-- *What I asked for:*
-- *What came back:*
-- *What I changed:*
+- *What I asked for:* The second signal and the combining rule for Milestone 4, run on clearly AI, clearly human, formal human and lightly edited AI text.
+- *What came back:* Three style measures (sentence-length spread, vocabulary variety, expressive punctuation) and a rule that averages the signals and pulls the result halfway toward 0.5 when they disagree by more than 0.35, with a table of eight test texts. It also reported that a plain, ordinary human paragraph scored 0.71 and was labeled AI because both signals agreed, so no reweighting could fix it.
+- *What I changed:* I read the table and the split case myself and kept the rule and the 0.35 and 0.65 thresholds as proposed. I chose not to widen the unsure band, so the plain-human false positive (0.71, labeled AI) is still there and is written up in the False-positive trace instead of being hidden by a looser threshold.
 
 <!-- ═══════════════════════ UNIT 8 — THE TEST ═══════════════════════ -->
 
