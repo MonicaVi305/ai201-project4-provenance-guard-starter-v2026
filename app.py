@@ -158,11 +158,13 @@ def submit():
     ← TODO — Milestones 3, 4 and 5
 
     Expects JSON:
-        {"text": "...", "creator_id": "..."}
+        {"text": "...", "creator_id": "..."} 
 
-    Should return JSON with, at minimum:
-        {"content_id": "...", "guess": "...", "confidence": 0.0, "label": "...",
-         "model_score": 0.0, "style_score": 0.0}
+    Should return JSON with:
+        {"content_id": "<uuid4 string>", "guess": "human|unsure|ai",
+         "label": "<reader-facing text>", "reasoning": "<short explanation>",
+         "model_score": 0.0, "style_score": 0.0,
+         "combined_score": 0.0, "confidence": 0.0}  # confidence == combined_score
 
     ⚠️ **Both signal scores go in the response, not just the log.** Unit 8's
     `run_attacks.py` and `run_eval.py` read `model_score` and `style_score`
