@@ -66,6 +66,24 @@ def describe(body):
     return json.dumps(body)[:120]
 
 
+def appeal_for(requests, args, content_id):
+    """
+    Appeal one submission, then read /log to confirm the appeal was recorded.
+
+    Added for criterion 4: an appeal can't be tested by sending text alone.
+    """
+    appeal = requests.post(f"{args.url}/appeal", timeout=args.timeout, json={
+        "content_id": content_id,
+        "reasoning": "I wrote this myself and would like a person to review it.",
+    })
+    body = appeal.json() if appeal.content else {}
+    log = requests.get(f"{args.url}/log", timeout=args.timeout).json()["entries"]
+    logged = any(e.get("content_id") == content_id and e.get("event") == "appeal"
+                 for e in log)
+    return {"content_id": content_id, "appeal_status": appeal.status_code,
+            "appeal_state": body.get("status"), "appeal_logged": logged}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -128,6 +146,8 @@ def main():
                         "label": payload.get("label"),
                         "sent": preview,
                     })
+                    if scenario.get("appeal") and response.status_code == 200:
+                        results[-1].update(appeal_for(requests, args, payload.get("content_id")))
                 except Exception as exc:  # noqa: BLE001
                     results.append({"status": None, "error": f"{type(exc).__name__}: {exc}",
                                     "sent": preview})

@@ -236,14 +236,14 @@ The log is append-only: the original decision stays as `decided` and the appeal 
 
 - *What I asked for:* A review of my five acceptance criteria in `criteria.md` (Milestone 2): could someone who couldn't ask me what I meant check each one? I wrote the criteria myself and did not ask for them to be written.
 - *What came back:* Criterion 4 (appeals) was checkable. Criteria 1, 2, 3 and 5 were not: no sample size or trial rule on the false-positive number, two different pass conditions in the score-spread one, no named test set for label coverage, and "a clear error message" instead of status codes. When I filled in my reasons, it also flagged two that were not mine: reason 3 cited results from "your trained model" that I never had, and reason 5 said the 10,000-word limit "is only an example", which contradicted my 20,000-character limit.
-- *What I changed:* Criterion 1 now says 30 texts, at most 1 flagged, in each of three trials. Criterion 2 needs both a 0.40 gap and no overlap, across 10 texts per group. Criterion 3 names a 30-text set. Criterion 5 lists 400, 413 and 422 and the 20,000-character limit. I replaced the reason for 3 with an honest "70% is an estimate" and the reason for 5 with the real limit.
+- *What I changed:* Criterion 1 now says 30 texts, at most 1 flagged, in each of three trials. Criterion 2 needs both a 0.40 gap and no overlap, across 10 texts per group. Criterion 3 names a 30-text set. Criterion 5 lists 400, 413 and 422 and the 20,000-character limit. I asked Calude to rewrite the reason for 3 with an honest "70% is an estimate" and fix the one for 5 with the real limit.
 
 **Moment 2**
 
 - *What I asked for:* The second signal and the combining rule for Milestone 4, run on clearly AI, clearly human, formal human and lightly edited AI text.
 - *What came back:* Three style measures (sentence-length spread, vocabulary variety, expressive punctuation) and a rule that averages the signals and pulls the result halfway toward 0.5 when they disagree by more than 0.35, with a table of eight test texts. It also reported that a plain, ordinary human paragraph scored 0.71 and was labeled AI because both signals agreed, so no reweighting could fix it.
-- *What I changed:* I read the table and the split case myself and kept the rule and the 0.35 and 0.65 thresholds as proposed. I chose not to widen the unsure band, so the plain-human false positive (0.71, labeled AI) is still there and is written up in the False-positive trace instead of being hidden by a looser threshold.
-
+- *What I changed:* _TODO — write what you changed or decided yourself here, for example a threshold, a weight, or a label you reworded._
+The most common change is moving a threshold, like raising the score needed for likely_ai from 0.5 to 0.7 so fewer human texts get flagged, or adding class weights so a model that only ever guesses the majority label
 <!-- ═══════════════════════ UNIT 8 — THE TEST ═══════════════════════ -->
 
 ---
@@ -270,7 +270,33 @@ can look like one. -->
 
 ```
 
----
+15 submissions as 'flood_tester' against http://127.0.0.1:5000
+The first one is slow while the model loads.
+
+  [ 1/15] 200
+  [ 2/15] 200
+  [ 3/15] 200
+  [ 4/15] 200
+  [ 5/15] 200
+  [ 6/15] 200
+  [ 7/15] 200
+  [ 8/15] 200
+  [ 9/15] 200
+  [10/15] 200
+  [11/15] 429
+  [12/15] 429
+  [13/15] 429
+  [14/15] 429
+  [15/15] 429
+
+============================================================
+200 200 200 200 200 200 200 200 200 200 429 429 429 429 429
+============================================================
+
+5 of 15 were rate limited. Paste the run above into your README
+under **Rate Limiting**, and check GET /log recorded the rejections.
+
+Wrote results\flood_2026-11-04_1847.md
 
 ## Attack Run — Before
 
@@ -377,17 +403,125 @@ whose work got caught by it:
 
 | Criterion | Target | Run 1 | Run 2 | Run 3 | Verdict |
 |---|---|---|---|---|---|
-| 1.  |  |  |  |  |  |
-| 2.  |  |  |  |  |  |
-| 3.  |  |  |  |  |  |
-| 4.  |  |  |  |  |  |
-| 5.  |  |  |  |  |  |
+| 1. My own writing flagged as AI | ≤ 5% (at most 1 of 22) | 8/22 | 8/22 | 8/22 | MISSED |
+| 2. Score spread, human vs AI | gap ≥ 0.40 and no overlap | gap 0.027, overlap | gap 0.027, overlap | gap 0.027, overlap | MISSED |
+| 3. Label coverage | all 3 labels, none over 70% | 2 of 3 labels (ai 18, unsure 12, human 0) | 2 of 3 | 2 of 3 | MISSED |
+| 4. Appeal moves status and is logged | 10 of 10 | 10/10 | 10/10 | 10/10 | MET |
+| 5. Bad input gets 400, 413 or 422, no crash | 8 of 8 | 8/8 | 8/8 | 8/8 | MET |
+
+All three trials were identical for every criterion: same statuses, same labels, same scores to four decimals. The earlier flood scenario differed between trials only because the rate limiter is stateful, not because scoring varied.
 
 **Real output from one trial**, pasted as text, naming the file and function
 that produced it:
 
-```json
+Produced by `run_eval.py::main` (which calls `app.py::submit` and `app.py::appeal`), saved in
+`results/run_2026-11-08_1431_before.md`. Criterion 4's `appeal_*` fields come from
+`run_eval.py::appeal_for`. Selected entries from trial 1:
 
+```json
+{
+  "criterion_1 (flagged as AI)": [
+    {
+      "status": 200,
+      "guess": "ai",
+      "confidence": 0.7245,
+      "model_score": 0.7621,
+      "style_score": 0.6869,
+      "sent": "I will be attending a workshop on artificial intelligence next month. "
+    },
+    {
+      "status": 200,
+      "guess": "ai",
+      "confidence": 0.682,
+      "model_score": 0.6139,
+      "style_score": 0.75,
+      "sent": "I am planning to start a new hobby this semester. I am thinking about "
+    },
+    {
+      "status": 200,
+      "guess": "ai",
+      "confidence": 0.7128,
+      "model_score": 0.6757,
+      "style_score": 0.75,
+      "sent": "I will be reading a new book this month. A friend recommended it to me"
+    }
+  ],
+  "criterion_2 (highest-scoring human text)": [
+    {
+      "status": 200,
+      "guess": "ai",
+      "confidence": 0.7808,
+      "model_score": 0.8115,
+      "style_score": 0.75,
+      "sent": "I am going to try a new recipe this week. I found it in a cooking vide"
+    }
+  ],
+  "criterion_2 (lowest-scoring AI text)": [
+    {
+      "status": 200,
+      "guess": "unsure",
+      "confidence": 0.6071,
+      "model_score": 0.4643,
+      "style_score": 0.75,
+      "sent": "Travel provides valuable opportunities for personal growth and cultura"
+    }
+  ],
+  "criterion_3 (label counts, trial 1)": {
+    "unsure": 12,
+    "ai": 18,
+    "human": 0
+  },
+  "criterion_4 (2 of 10 appeals, trial 1)": [
+    {
+      "content_id": "3efdc981-a697-47a5-88dd-ac0fcbd7907a",
+      "appeal_status": 200,
+      "appeal_state": "under_review",
+      "appeal_logged": true,
+      "sent": "Maybe I'll postpone my travel because I'm not feeling well. I'll proba"
+    },
+    {
+      "content_id": "86e8f3a8-3ad9-4480-ad32-00221c45e820",
+      "appeal_status": 200,
+      "appeal_state": "under_review",
+      "appeal_logged": true,
+      "sent": "I might not complete my lab report this week. I'll have to ask my prof"
+    }
+  ],
+  "criterion_5 (all 8 bad inputs, trial 1)": [
+    {
+      "status": 400,
+      "sent": "{\"creator_id\": \"eval_bad_missing\"}"
+    },
+    {
+      "status": 400,
+      "sent": "(empty text)"
+    },
+    {
+      "status": 400,
+      "sent": "   \n\t  "
+    },
+    {
+      "status": 400,
+      "sent": "{\"text\": null, \"creator_id\": \"eval_bad_null\"}"
+    },
+    {
+      "status": 400,
+      "sent": "{\"text\": 12345, \"creator_id\": \"eval_bad_number\"}"
+    },
+    {
+      "status": 422,
+      "sent": "a"
+    },
+    {
+      "status": 413,
+      "sent": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+      "status": 413,
+      "sent": "word word word word word word word word word word word word "
+    }
+  ]
+}
 ```
 
 **Diagnoses**
@@ -405,6 +539,27 @@ that produced it:
                         signal at 0.6, so it dragged the whole score down."
 
      Look for a pattern. Five failures on one signal is one problem, not five. -->
+
+**Pattern: three criteria and eight attacks trace back to two weak signals feeding a rule that can't recover.** Scores were identical across all three trials, so nothing is unstable. The misses are systematic.
+
+**Criterion 1 — own writing flagged as AI (8 of 22, target ≤ 1).**
+Stage: signal two (`stylometry.py::style_signal`) and signal one (`detector.py`) together.
+All 8 flagged pieces were multi-sentence, and in every one both signals were high (model ≥ 0.61, style ≥ 0.67), e.g. the grandparents piece scored 0.71 and 0.67 and the recipe piece 0.81 and 0.75. My sentences are close to the same length (sentence-length spread 0.05 on the first piece, against an AI-end threshold of 0.25) and use no expressive punctuation (0.0). That gives the spread part and the punctuation part their maximum, so the style score sits at 0.75. GPT-2 also finds plain everyday sentences predictable, so the model score is high too. When both signals agree, the split-shrink in `scoring.py::combine_signals` never triggers, so nothing pulls the score back. The other 14 pieces were not flagged mostly because 12 of 22 are single sentences, where the style signal falls back to 0.5.
+
+**Criterion 2 — score spread (gap 0.027, target ≥ 0.40, groups overlap).**
+Stage: signal two, with signal one weak as well.
+Mean combined score was 0.698 for human texts and 0.725 for AI texts; the highest human text scored 0.781 and the lowest AI text 0.607. Per signal, the model signal separates the groups by only 0.10 (0.66 human, 0.76 AI), and the style signal points the wrong way (0.73 human, 0.69 AI). My first AI sample paragraph has a sentence-length spread of 0.35 and a type-token ratio of 0.97, which the style signal reads as human, while my own plain writing has near-zero spread. The measures are calibrated for the range I guessed (`SPREAD_AI 0.25`, `SPREAD_HUMAN 0.65`), not for what my texts actually look like.
+
+**Criterion 3 — label coverage (2 of 3 labels; "human" appeared 0 times in 30).**
+Stage: combining rule and label mapping, caused by the style signal's floor.
+The lowest style score across the 30 texts was 0.38 and the lowest combined score was 0.417, above `HUMAN_THRESHOLD` 0.35. For single-sentence texts the style fallback is 0.5, so the average can only go low if the model score is very low, and then the split rule undoes it: "Our professor explained the lesson clearly." has model 0.1226 and style 0.5, an average of 0.311, but the gap of 0.38 exceeds `SPLIT_GAP` 0.35, so the score is shrunk to 0.4057 and labelled unsure. The human label is effectively unreachable with the current signals and thresholds.
+
+**Attacks marked BROKE in Milestone 2**
+- **FP02–FP05 (human writing called AI, 0.72–0.87):** same mechanism as criterion 1: regular sentence lengths and little expressive punctuation push the style score up (FP05 is 0.93), and predictable formal or technical prose gives a high model score (0.74–0.83).
+- **EV05 (called human, 0.28):** stage: signal two and signal one. The rewrite has an em-dash, a fragment ("Obviously.") and irregular rhythm. The same shape measures that fooled the detector in the other direction here make a heavily edited text look human, because both signals read surface form, not origin.
+- **PI02 (called human, 0.19):** stage: signal two. The signals do not read instructions, so this was not obeyed. The fake "SYSTEM:" prefix and the truncated trailing "Th" change the sentence lengths to 7, 5, 6, 11, 15 and 1 words. That raises the spread to 0.65, which is the human end, and the style score falls to 0.1806. The injected text moved the shape of the text, not the meaning.
+- **MF06 (emoji) and MF07 (Arabic), called AI at 0.87 and 0.83:** stage: signal two plus signal one. `stylometry.py::words` only matches `[a-z0-9']`, so these texts have zero words. Spread, vocabulary and punctuation all read as "no variation", giving a style score of 0.75, while GPT-2 finds repeated emoji and short Arabic tokens extremely predictable (model scores 0.9969 and 0.9064). A real Arabic writer would be accused with no evidence about their writing.
+
 
 
 
