@@ -411,6 +411,18 @@ whose work got caught by it:
 
 All three trials were identical for every criterion: same statuses, same labels, same scores to four decimals. The earlier flood scenario differed between trials only because the rate limiter is stateful, not because scoring varied.
 
+**How I decided each verdict** (the target has to hold in every trial; all three trials matched, so each verdict is the same in all three)
+
+1. **MISSED.** The target was at most 5% of my own writing labeled AI, which with 22 pieces means at most 1. Eight pieces (36%) were labeled AI in every trial, so there is no generous reading: even one trial at 2 would have been a miss.
+2. **MISSED.** The target had two parts and both had to hold. The gap between the group means was 0.027 against 0.40, and the groups overlap (highest human 0.781, lowest AI 0.607). Failing either part would have been enough.
+3. **MISSED.** The 70% cap held (the largest label was "ai" at 18 of 30, 60%), but the other half of the target, all three labels appearing, failed: "human" appeared 0 times in 30. I did not count the cap as a partial pass.
+4. **MET.** All 10 appeals returned 200 with status `under_review`, and each had an `appeal` entry in the audit log, in all three trials.
+5. **MET.** All 8 bad inputs returned the expected code (400 for missing, empty, whitespace, null and number text; 422 for one character; 413 for 20,001 characters and for 250,000), and the service did not crash in any trial.
+
+**Were the two MET targets too easy?** Probably, yes. Criterion 4 only checks the status and that a log entry exists; it does not check that the original decision is kept next to the appeal, or what an unknown `content_id` returns (404). Criterion 5 tests one value over the 20,000-character limit but not the boundary itself, and does not test non-JSON bodies. If I tightened one, it would be criterion 4, because an appeal that silently overwrites the original decision would still pass it.
+
+**No criterion was revised.** All five could be measured, so none qualifies as a revision, and lowering a target because I missed it would not count.
+
 **Real output from one trial**, pasted as text, naming the file and function
 that produced it:
 
