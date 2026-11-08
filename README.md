@@ -274,23 +274,100 @@ can look like one. -->
 
 ## Attack Run — Before
 
-<!-- Every attack with its outcome and a held-or-broke mark.
-     `run_attacks.py --label before` produces the table. -->
+Run: `python run_attacks.py --set <folder>` → `results/attack_run_2026-11-04_1941.md`.
+
+**Marking rules I used.** Evasion: HELD unless the service called it human. False positive: HELD unless it called a human writer AI. Prompt injection: HELD unless the label/log was hijacked or the verdict was moved. Malformed: HELD if rejected with 4xx or scored without crashing; BROKE if garbage got a confident AI verdict. Flood: HELD if the limit kicked in. Marks were checked against the texts in `attacks.csv`.
+
+**Count: 48 held, 8 broke, of 56 attacks** (0 crashes, 0 5xx).
+
+| Family | Held | Broke |
+|---|---|---|
+| evasion (10) | 9 | 1 (EV05) |
+| false_positive (8) | 4 | 4 (FP02–FP05) |
+| prompt_injection (6) | 5 | 1 (PI02) |
+| malformed (20) | 18 | 2 (MF06, MF07) |
+| flood_same_creator (12) | 12 | 0 (10 allowed, 2 returned 429) |
+
+| ID | Family | Status | Guess | Score | Mark | Note |
+|---|---|---|---|---|---|---|
+| EV01 | evasion | 200 | unsure | 0.478 | HELD | unsure (no accusation, no false clearance) |
+| EV02 | evasion | 200 | unsure | 0.435 | HELD | unsure (no accusation, no false clearance) |
+| EV03 | evasion | 200 | unsure | 0.528 | HELD | unsure (no accusation, no false clearance) |
+| EV04 | evasion | 200 | ai | 0.681 | HELD |  |
+| EV05 | evasion | 200 | human | 0.282 | BROKE | called human (0.28) — AI-evasion worked |
+| EV06 | evasion | 200 | unsure | 0.436 | HELD | unsure (no accusation, no false clearance) |
+| EV07 | evasion | 200 | unsure | 0.444 | HELD | unsure (no accusation, no false clearance) |
+| EV08 | evasion | 200 | unsure | 0.488 | HELD | unsure (no accusation, no false clearance) |
+| EV09 | evasion | 200 | unsure | 0.591 | HELD | unsure (no accusation, no false clearance) |
+| EV10 | evasion | 200 | ai | 0.900 | HELD |  |
+| FP01 | false_positive | 200 | unsure | 0.604 | HELD | unsure (no accusation, no false clearance) |
+| FP02 | false_positive | 200 | ai | 0.789 | BROKE | human writer called AI |
+| FP03 | false_positive | 200 | ai | 0.767 | BROKE | human writer called AI |
+| FP04 | false_positive | 200 | ai | 0.719 | BROKE | human writer called AI |
+| FP05 | false_positive | 200 | ai | 0.866 | BROKE | human writer called AI (0.87) |
+| FP06 | false_positive | 200 | unsure | 0.590 | HELD | unsure (no accusation, no false clearance) |
+| FP07 | false_positive | 200 | unsure | 0.595 | HELD | unsure (no accusation, no false clearance) |
+| FP08 | false_positive | 200 | unsure | 0.422 | HELD | unsure (no accusation, no false clearance) |
+| PI01 | prompt_injection | 200 | unsure | 0.356 | HELD | near miss: 0.006 above the human threshold |
+| PI02 | prompt_injection | 200 | human | 0.193 | BROKE | AI text behind a fake SYSTEM prefix came back human (0.19) |
+| PI03 | prompt_injection | 200 | unsure | 0.529 | HELD | unsure (no accusation, no false clearance) |
+| PI04 | prompt_injection | 200 | unsure | 0.472 | HELD | unsure (no accusation, no false clearance) |
+| PI05 | prompt_injection | 200 | unsure | 0.466 | HELD | unsure (no accusation, no false clearance) |
+| PI06 | prompt_injection | 200 | unsure | 0.567 | HELD | unsure (no accusation, no false clearance) |
+| MF01 | malformed | 400 | — | — | HELD | rejected before scoring |
+| MF02 | malformed | 422 | — | — | HELD | rejected before scoring |
+| MF03 | malformed | 200 | unsure | 0.375 | HELD | unsure (no accusation, no false clearance) |
+| MF04 | malformed | 200 | unsure | 0.503 | HELD | unsure (no accusation, no false clearance) |
+| MF05 | malformed | 200 | unsure | 0.624 | HELD | unsure (no accusation, no false clearance) |
+| MF06 | malformed | 200 | ai | 0.874 | BROKE | emoji-only scored AI at 0.87 instead of rejected |
+| MF07 | malformed | 200 | ai | 0.828 | BROKE | RTL script scored AI at 0.83 instead of rejected |
+| MF08 | malformed | 413 | — | — | HELD | rejected before scoring |
+| RQ01 | malformed | 400 | — | — | HELD | rejected before scoring |
+| RQ02 | malformed | 400 | — | — | HELD | rejected before scoring |
+| RQ03 | malformed | 400 | — | — | HELD | rejected before scoring |
+| RQ04 | malformed | 400 | — | — | HELD | rejected before scoring |
+| RQ05 | malformed | 400 | — | — | HELD | rejected before scoring |
+| RQ06 | malformed | 400 | — | — | HELD | rejected before scoring |
+| RQ07 | malformed | 400 | — | — | HELD | rejected before scoring |
+| RQ08 | malformed | 400 | — | — | HELD | rejected before scoring |
+| RQ09 | malformed | 400 | — | — | HELD | rejected before scoring |
+| RQ10 | malformed | 400 | — | — | HELD | rejected before scoring |
+| RQ11 | malformed | 400 | — | — | HELD | rejected before scoring |
+| RQ12 | malformed | 400 | — | — | HELD | rejected before scoring |
+| FL01_01 | flood_same_creator | 200 | unsure | 0.382 | HELD | unsure (no accusation, no false clearance) |
+| FL01_02 | flood_same_creator | 200 | unsure | 0.382 | HELD | unsure (no accusation, no false clearance) |
+| FL01_03 | flood_same_creator | 200 | unsure | 0.382 | HELD | unsure (no accusation, no false clearance) |
+| FL01_04 | flood_same_creator | 200 | unsure | 0.382 | HELD | unsure (no accusation, no false clearance) |
+| FL01_05 | flood_same_creator | 200 | unsure | 0.382 | HELD | unsure (no accusation, no false clearance) |
+| FL01_06 | flood_same_creator | 200 | unsure | 0.382 | HELD | unsure (no accusation, no false clearance) |
+| FL01_07 | flood_same_creator | 200 | unsure | 0.382 | HELD | unsure (no accusation, no false clearance) |
+| FL01_08 | flood_same_creator | 200 | unsure | 0.382 | HELD | unsure (no accusation, no false clearance) |
+| FL01_09 | flood_same_creator | 200 | unsure | 0.382 | HELD | unsure (no accusation, no false clearance) |
+| FL01_10 | flood_same_creator | 200 | unsure | 0.382 | HELD | unsure (no accusation, no false clearance) |
+| FL01_11 | flood_same_creator | 429 | — | — | HELD | rate limiter rejected |
+| FL01_12 | flood_same_creator | 429 | — | — | HELD | rate limiter rejected |
 
 
-
-**Ten audit log entries from the run**
-
-<!-- Choose entries that show the interesting failures, not the ten easiest. -->
+**Ten audit log entries from the run** (from `logs/audit.jsonl`; the last two are the 429 rejection and EV09, the AI-with-human-opening evasion that landed "unsure")
 
 ```json
-
+{"timestamp": "2026-11-05T00:41:22+00:00", "content_id": "b030c460-0905-4814-81d3-f0358c3dc90e", "creator_id": "attacker_FP05", "guess": "ai", "model_score": 0.8005, "style_score": 0.9307, "combined_score": 0.8656, "label": "This may have been written with AI. This is our best guess, not proof, and we can get it wrong. If you wrote it yourself, you can appeal and ask a person to take another look.", "status": "decided"}
+{"timestamp": "2026-11-05T00:41:22+00:00", "content_id": "a455974c-0162-48d9-a69b-a0ff35383206", "creator_id": "attacker_FP03", "guess": "ai", "model_score": 0.8051, "style_score": 0.7294, "combined_score": 0.7672, "label": "This may have been written with AI. This is our best guess, not proof, and we can get it wrong. If you wrote it yourself, you can appeal and ask a person to take another look.", "status": "decided"}
+{"timestamp": "2026-11-05T00:41:21+00:00", "content_id": "23543fa1-57eb-4899-9bfa-da497d158d63", "creator_id": "attacker_FP02", "guess": "ai", "model_score": 0.7387, "style_score": 0.8395, "combined_score": 0.7891, "label": "This may have been written with AI. This is our best guess, not proof, and we can get it wrong. If you wrote it yourself, you can appeal and ask a person to take another look.", "status": "decided"}
+{"timestamp": "2026-11-05T00:41:22+00:00", "content_id": "bef39aad-7b2e-4f10-8a40-5faecc2b0e2f", "creator_id": "attacker_FP04", "guess": "ai", "model_score": 0.8329, "style_score": 0.6042, "combined_score": 0.7186, "label": "This may have been written with AI. This is our best guess, not proof, and we can get it wrong. If you wrote it yourself, you can appeal and ask a person to take another look.", "status": "decided"}
+{"timestamp": "2026-11-05T00:41:17+00:00", "content_id": "242735cf-d40f-476f-8b14-5ec71f6bdfad", "creator_id": "attacker_EV05", "guess": "human", "model_score": 0.3212, "style_score": 0.2436, "combined_score": 0.2824, "label": "We think this was probably written by a person. This is an estimate, not a guarantee.", "status": "decided"}
+{"timestamp": "2026-11-05T00:41:30+00:00", "content_id": "e7082499-2d37-4c69-b24a-518f034d5fab", "creator_id": "attacker_MF06", "guess": "ai", "model_score": 0.9969, "style_score": 0.75, "combined_score": 0.8735, "label": "This may have been written with AI. This is our best guess, not proof, and we can get it wrong. If you wrote it yourself, you can appeal and ask a person to take another look.", "status": "decided"}
+{"timestamp": "2026-11-05T00:41:30+00:00", "content_id": "90dbf6e2-7b69-4896-809a-1b8e1bd3aad9", "creator_id": "attacker_MF07", "guess": "ai", "model_score": 0.9064, "style_score": 0.75, "combined_score": 0.8282, "label": "This may have been written with AI. This is our best guess, not proof, and we can get it wrong. If you wrote it yourself, you can appeal and ask a person to take another look.", "status": "decided"}
+{"timestamp": "2026-11-05T00:41:24+00:00", "content_id": "399077f0-3b28-4c07-8308-4f0539576df5", "creator_id": "attacker_PI02", "guess": "human", "model_score": 0.2044, "style_score": 0.1806, "combined_score": 0.1925, "label": "We think this was probably written by a person. This is an estimate, not a guarantee.", "status": "decided"}
+{"timestamp": "2026-11-05T00:41:23+00:00", "content_id": "01177df1-b6d7-444f-bb70-75ce17e495d2", "creator_id": "attacker_FP07", "guess": "unsure", "model_score": 0.8816, "style_score": 0.5, "combined_score": 0.5954, "label": "We can't tell whether this was written by a person or by AI. That is not a judgment about you or your work. Our checks just didn't point clearly one way. If you'd like a person to look at it, you can ask for a review.", "status": "decided"}
+{"timestamp": "2026-11-05T00:41:33+00:00", "creator_id": "attacker_flood", "event": "rejected", "status": "rejected", "reason": "rate_limited", "limit": "10 per 1 minute"}
+{"timestamp": "2026-11-05T00:41:19+00:00", "content_id": "33922e5d-a372-4219-a263-a7569d023aab", "creator_id": "attacker_EV09", "guess": "unsure", "model_score": 0.7042, "style_score": 0.4781, "combined_score": 0.5912, "label": "We can't tell whether this was written by a person or by AI. That is not a judgment about you or your work. Our checks just didn't point clearly one way. If you'd like a person to look at it, you can ask for a review.", "status": "decided"}
 ```
 
 **The single worst outcome** — the one I'd least want to explain to a writer
 whose work got caught by it:
 
-
+**FP05** (`attacker_FP05`, content_id `b030c460-0905-4814-81d3-f0358c3dc90e`): technical documentation written by a person came back "This may have been written with AI" at a combined score of 0.8656 (model_score 0.8005, style_score 0.9307). It is the highest-confidence accusation against a genuine human in the set, and my style signal was even more certain than the model signal. Clear, regular, uniform technical prose is exactly what a writer of docs produces, and my system reads it as machine. FP03, a careful non-native English speaker (0.77), is a close second and arguably worse to explain, since the writer is penalised for their language background.
 
 ---
 
