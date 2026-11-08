@@ -579,22 +579,90 @@ The lowest style score across the 30 texts was 0.38 and the lowest combined scor
 
 ## The Improvement
 
-**What I changed:**
+**What I changed:** one constant, `AI_THRESHOLD` in `config.py`, from 0.65 to 0.80. `HUMAN_THRESHOLD` (0.35), the weights (0.5 / 0.5), both signals and the split rule are untouched. The "unsure" band went from 0.35–0.65 to 0.35–0.80.
 
-**Which diagnosis pointed at it:**
+**Which diagnosis pointed at it:** the criterion 1 and false-positive diagnoses. Every one of my 8 flagged pieces had both signals high, so the split rule could not pull them back, and the combined scores sat between 0.68 and 0.78, just over the 0.65 line. Moving the line above them is the one change that stops the accusation without touching the signals. It was picked from a quick offline replay of the stored scores against a few alternatives (reweighting the signals either way, and a threshold of 0.75), which are described below.
 
 ### Attack Run — After
 
-<!-- Same format. `run_attacks.py --label after` -->
+`python run_attacks.py --set <folder> --label after` → `results/attack_run_2026-11-08_1505_after.md`. Same 56 attacks, same marking rules as the before run. Before: **48 held, 8 broke**. After: **51 held, 5 broke**. Nothing crashed in either run (0 5xx), and the flood rows still returned 429 after 10.
 
+| ID | Family | Before | After | Before mark | After mark |
+|---|---|---|---|---|---|
+| EV01 | evasion | unsure 0.478 | unsure 0.478 | HELD | HELD |
+| EV02 | evasion | unsure 0.435 | unsure 0.435 | HELD | HELD |
+| EV03 | evasion | unsure 0.528 | unsure 0.528 | HELD | HELD |
+| EV04 | evasion | ai 0.681 | unsure 0.681 | HELD | HELD |
+| EV05 | evasion | human 0.282 | human 0.282 | BROKE | BROKE |
+| EV06 | evasion | unsure 0.436 | unsure 0.436 | HELD | HELD |
+| EV07 | evasion | unsure 0.444 | unsure 0.444 | HELD | HELD |
+| EV08 | evasion | unsure 0.488 | unsure 0.488 | HELD | HELD |
+| EV09 | evasion | unsure 0.591 | unsure 0.591 | HELD | HELD |
+| EV10 | evasion | ai 0.900 | ai 0.900 | HELD | HELD |
+| FP01 | false_positive | unsure 0.604 | unsure 0.604 | HELD | HELD |
+| FP02 | false_positive | ai 0.789 | unsure 0.789 | BROKE | HELD |
+| FP03 | false_positive | ai 0.767 | unsure 0.767 | BROKE | HELD |
+| FP04 | false_positive | ai 0.719 | unsure 0.719 | BROKE | HELD |
+| FP05 | false_positive | ai 0.866 | ai 0.866 | BROKE | BROKE |
+| FP06 | false_positive | unsure 0.590 | unsure 0.590 | HELD | HELD |
+| FP07 | false_positive | unsure 0.595 | unsure 0.595 | HELD | HELD |
+| FP08 | false_positive | unsure 0.422 | unsure 0.422 | HELD | HELD |
+| PI01 | prompt_injection | unsure 0.356 | unsure 0.356 | HELD | HELD |
+| PI02 | prompt_injection | human 0.193 | human 0.193 | BROKE | BROKE |
+| PI03 | prompt_injection | unsure 0.529 | unsure 0.529 | HELD | HELD |
+| PI04 | prompt_injection | unsure 0.472 | unsure 0.472 | HELD | HELD |
+| PI05 | prompt_injection | unsure 0.466 | unsure 0.466 | HELD | HELD |
+| PI06 | prompt_injection | unsure 0.567 | unsure 0.567 | HELD | HELD |
+| MF01 | malformed | 400 | 400 | HELD | HELD |
+| MF02 | malformed | 422 | 422 | HELD | HELD |
+| MF03 | malformed | unsure 0.375 | unsure 0.375 | HELD | HELD |
+| MF04 | malformed | unsure 0.503 | unsure 0.503 | HELD | HELD |
+| MF05 | malformed | unsure 0.624 | unsure 0.624 | HELD | HELD |
+| MF06 | malformed | ai 0.874 | ai 0.874 | BROKE | BROKE |
+| MF07 | malformed | ai 0.828 | ai 0.828 | BROKE | BROKE |
+| MF08 | malformed | 413 | 413 | HELD | HELD |
+| RQ01 | malformed | 400 | 400 | HELD | HELD |
+| RQ02 | malformed | 400 | 400 | HELD | HELD |
+| RQ03 | malformed | 400 | 400 | HELD | HELD |
+| RQ04 | malformed | 400 | 400 | HELD | HELD |
+| RQ05 | malformed | 400 | 400 | HELD | HELD |
+| RQ06 | malformed | 400 | 400 | HELD | HELD |
+| RQ07 | malformed | 400 | 400 | HELD | HELD |
+| RQ08 | malformed | 400 | 400 | HELD | HELD |
+| RQ09 | malformed | 400 | 400 | HELD | HELD |
+| RQ10 | malformed | 400 | 400 | HELD | HELD |
+| RQ11 | malformed | 400 | 400 | HELD | HELD |
+| RQ12 | malformed | 400 | 400 | HELD | HELD |
+| FL01_01 | flood_same_creator | unsure 0.382 | unsure 0.382 | HELD | HELD |
+| FL01_02 | flood_same_creator | unsure 0.382 | unsure 0.382 | HELD | HELD |
+| FL01_03 | flood_same_creator | unsure 0.382 | unsure 0.382 | HELD | HELD |
+| FL01_04 | flood_same_creator | unsure 0.382 | unsure 0.382 | HELD | HELD |
+| FL01_05 | flood_same_creator | unsure 0.382 | unsure 0.382 | HELD | HELD |
+| FL01_06 | flood_same_creator | unsure 0.382 | unsure 0.382 | HELD | HELD |
+| FL01_07 | flood_same_creator | unsure 0.382 | unsure 0.382 | HELD | HELD |
+| FL01_08 | flood_same_creator | unsure 0.382 | unsure 0.382 | HELD | HELD |
+| FL01_09 | flood_same_creator | unsure 0.382 | unsure 0.382 | HELD | HELD |
+| FL01_10 | flood_same_creator | unsure 0.382 | unsure 0.382 | HELD | HELD |
+| FL01_11 | flood_same_creator | 429 | 429 | HELD | HELD |
+| FL01_12 | flood_same_creator | 429 | 429 | HELD | HELD |
 
+**Criteria — before and after** (`results/run_2026-11-08_1431_before.md` and `results/run_2026-11-08_1506_after.md`, three trials each, all identical):
 
-**Did it help, and how do I know:**
+| Criterion | Target | Before | After | Verdict before | Verdict after |
+|---|---|---|---|---|---|
+| 1. Own writing flagged as AI | ≤ 1 of 22 | 8/22 | 0/22 | MISSED | MET |
+| 2. Score spread | gap ≥ 0.40, no overlap | gap 0.027, overlap | gap 0.027, overlap | MISSED | MISSED |
+| 3. Label coverage | all 3 labels, none over 70% | ai 18, unsure 12, human 0 | ai 1, unsure 29, human 0 | MISSED | MISSED (worse) |
+| 4. Appeal changes status | 10 of 10 | 10/10 | 10/10 | MET | MET |
+| 5. Bad input | 8 of 8 | 8/8 | 8/8 | MET | MET |
 
-<!-- Widening the unsure band usually fixes one problem and creates another.
-     Reporting that trade honestly is worth full credit. -->
+**Did it help, and how do I know:** It fixed the problem it was aimed at and made another one worse.
 
-
+- **Helped:** criterion 1 went from 8 of 22 to 0 of 22 in all three trials, so it now meets its target. Three of the four false-positive attacks that were wrongly called AI (FP02, FP03, FP04) now come back "unsure". Broken attacks went from 8 to 5.
+- **The cost, on the other side:** the system now almost never says "AI". Of my 10 clearly-AI paragraphs, 9 were called AI before and 1 is now. Criterion 3 got worse: 29 of 30 texts are "unsure" (97%), well over the 70% cap, where before the largest label was 60%. In the attack set EV04 (AI text with unusual words) went from "ai" to "unsure". I counted that as still held, since "unsure" is not "human", but it is detection that is gone. Detecting AI and not accusing humans trade against each other through this one number.
+- **Did not help:** criterion 2 (gap 0.027) is unchanged, because a threshold doesn't change scores. The "human" label is still never produced. FP05 (technical documentation, 0.866), MF06 (emoji, 0.874) and MF07 (Arabic, 0.828) are still above 0.80, so they are still called AI, and EV05 and PI02 are still called human.
+- **The simulation I used to choose:** replaying the stored scores, `AI_THRESHOLD` 0.75 only got criterion 1 to 2 of 22 (still a miss); reweighting to 0.8 model / 0.2 style left criterion 1 at 8 of 22 and raised false positives in the attack set to 6 of 8; reweighting to 0.2 / 0.8 did not help either. The real run matched the replay exactly.
+- **Caveat:** I chose 0.80 by looking at these same 22 pieces, so it may be fitted to them. A number picked on a different set of my writing might not give 0 of 22.
 
 ---
 
