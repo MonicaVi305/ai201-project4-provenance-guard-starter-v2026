@@ -236,7 +236,7 @@ The log is append-only: the original decision stays as `decided` and the appeal 
 
 - *What I asked for:* A review of my five acceptance criteria in `criteria.md` (Milestone 2): could someone who couldn't ask me what I meant check each one? I wrote the criteria myself and did not ask for them to be written.
 - *What came back:* Criterion 4 (appeals) was checkable. Criteria 1, 2, 3 and 5 were not: no sample size or trial rule on the false-positive number, two different pass conditions in the score-spread one, no named test set for label coverage, and "a clear error message" instead of status codes. When I filled in my reasons, it also flagged two that were not mine: reason 3 cited results from "your trained model" that I never had, and reason 5 said the 10,000-word limit "is only an example", which contradicted my 20,000-character limit.
-- *What I changed:* Criterion 1 now says 30 texts, at most 1 flagged, in each of three trials. Criterion 2 needs both a 0.40 gap and no overlap, across 10 texts per group. Criterion 3 names a 30-text set. Criterion 5 lists 400, 413 and 422 and the 20,000-character limit. I asked Calude to rewrite the reason for 3 with an honest "70% is an estimate" and fix the one for 5 with the real limit.
+- *What I changed:* Criterion 1 now says 30 texts, at most 1 flagged, in each of three trials. Criterion 2 needs both a 0.40 gap and no overlap, across 10 texts per group. Criterion 3 names a 30-text set. Criterion 5 lists 400, 413 and 422 and the 20,000-character limit. I asked Claude to rewrite the reason for 3 with an honest "70% is an estimate" and fix the one for 5 with the real limit.
 
 **Moment 2**
 
@@ -244,32 +244,33 @@ The log is append-only: the original decision stays as `decided` and the appeal 
 - *What came back:* Three style measures (sentence-length spread, vocabulary variety, expressive punctuation) and a rule that averages the signals and pulls the result halfway toward 0.5 when they disagree by more than 0.35, with a table of eight test texts. It also reported that a plain, ordinary human paragraph scored 0.71 and was labeled AI because both signals agreed, so no reweighting could fix it.
 - *What I changed:* _TODO — write what you changed or decided yourself here, for example a threshold, a weight, or a label you reworded._
 The most common change is moving a threshold, like raising the score needed for likely_ai from 0.5 to 0.7 so fewer human texts get flagged, or adding class weights so a model that only ever guesses the majority label
+
+**Moment 3** (unit 8, Milestones 2–5)
+
+- *What I asked for:* I did not have time to do the unit's run-and-diagnose steps myself, so I asked Claude Code to run the attack set and my criteria, mark them, write the diagnoses, and make the improvement.
+- *What came back:* It marked 48 held and 8 broke in the attack run, rebuilt `scenarios.py` so it tested my five criteria (my first version tested the wrong ones), wrote the AI and borderline test texts, and ran three trials. It wrote the diagnoses using the stored scores and by running my signal functions on the real attack texts. For the improvement it replayed my stored scores against a few options before choosing `AI_THRESHOLD` 0.65 to 0.80.
+- *What I changed or decided:* I wrote my own 22 pieces and 10 appeal texts (Claude fixed the typos and lengthened 10 of them, and I asked it to), replaced the Arabic test with Spanish, shortened the evasion texts, and chose to run the eval without cleaning up the older result files. The diagnoses, the AI and borderline texts, and the improvement choice were Claude's. I should be able to explain them, but I did not work them out myself, and the 0.80 threshold was picked on the same 22 pieces it was measured on.
+- *Where I checked it:* the held-or-broke marks were checked against the real attack texts, and Claude reported that an earlier run had been invalid because the service died, so I did not use it.
+
 <!-- ═══════════════════════ UNIT 8 — THE TEST ═══════════════════════ -->
 
 ---
 
 ## Rate Limiting
 
-**My limits:** ___ per minute, ___ per day
+**My limits:** 10 per minute, 200 per day (per caller, on `/submit`; set in `config.py`)
 
 **Why those numbers and not others:**
-<!-- Think about two people: a real writer submitting their own work a few
-     times an hour, and a script sending a thousand variations to map your
-     thresholds. Your numbers have to be liveable for the first and hostile to
-     the second. -->
 
-**What a caller counts as:** <!-- per address, or per creator_id? They fail
-differently — one script can look like a thousand callers, and one household
-can look like one. -->
+A real writer submits their own work a few times an hour, maybe retrying after an edit, so 10 a minute is far more than they need and they should never see a 429. A script mapping my thresholds needs hundreds of probes, so 10 a minute slows it to a crawl, and the 200 a day cap stops a patient one from simply waiting out the minute window. I did not go lower because each request runs a model and takes a second or two, and a few people sharing a creator_id (a class, a household) would otherwise hit the limit by accident. I did not go higher because there's no reason a person needs more than 200 checks in a day.
+
+**What a caller counts as:** the `creator_id` in the request body, falling back to the caller's address when there isn't a usable one (`app.py::rate_limit_key`). That fails in one direction: a script can send each probe under a different `creator_id` and never reach the limit, so these numbers stop a flood from one identity but not a scripted attacker who rotates identities. The attack set's flood rows share one `creator_id` on purpose to test the first case. I did not close the second one.
 
 **The run of status codes when I pushed past it:**
 
-<!-- python run_attacks.py --flood 15 -->
+`python run_attacks.py --flood 15` (saved in `results/flood_2026-11-04_1847.md`, produced by `run_attacks.py::run_flood`): 15 submissions as `flood_tester`, 10 accepted, then 5 rejected.
 
 ```
-
-```
-
 15 submissions as 'flood_tester' against http://127.0.0.1:5000
 The first one is slow while the model loads.
 
@@ -297,6 +298,11 @@ The first one is slow while the model loads.
 under **Rate Limiting**, and check GET /log recorded the rejections.
 
 Wrote results\flood_2026-11-04_1847.md
+```
+
+The rejected requests are in the audit log with fewer fields than a decision (`creator_id`, `event: rejected`, `status: rejected`, `reason: rate_limited`, `limit: 10 per 1 minute`). The attack set's `flood_same_creator` rows gave the same pattern: 10 accepted, 2 returned 429.
+
+---
 
 ## Attack Run — Before
 
@@ -664,21 +670,35 @@ The lowest style score across the 30 texts was 0.38 and the lowest combined scor
 - **The simulation I used to choose:** replaying the stored scores, `AI_THRESHOLD` 0.75 only got criterion 1 to 2 of 22 (still a miss); reweighting to 0.8 model / 0.2 style left criterion 1 at 8 of 22 and raised false positives in the attack set to 6 of 8; reweighting to 0.2 / 0.8 did not help either. The real run matched the replay exactly.
 - **Caveat:** I chose 0.80 by looking at these same 22 pieces, so it may be fitted to them. A number picked on a different set of my writing might not give 0 of 22.
 
+**Follow-up fix (made after the measured improvement, so it is reported separately):** I added a check to `app.py::submit`: if the text has fewer than `MIN_LATIN_WORDS` (3, in `config.py`) Latin-alphabet words, return 422 `text_not_supported` instead of scoring it. This was the cheapest fix named in "What's Still Broken". It was not part of the one-change comparison above, so the before/after numbers for `AI_THRESHOLD` stand on their own. I re-ran the attack set and the five criteria (`results/attack_run_2026-11-08_1532_fix.md`, `results/run_2026-11-08_1532_fix.md`):
+
+- MF06 (emoji, was AI 0.874) and MF07 (Arabic, was AI 0.828) now return 422. Broken attacks went from 5 to 3 (FP05, EV05, PI02 remain).
+- Two other inputs changed behavior: MF04 (punctuation only) and MF05 (one very long word) went from "unsure" to 422. That is a different result, not a worse one, but it means a text with fewer than 3 Latin words is now refused.
+- Nothing else moved. Criteria were identical in all three trials: criterion 1 is 0/22, criterion 3 is still ai 1 / unsure 29 / human 0, criterion 4 is 10/10, and criterion 5 is 8/8.
+- The cost: a legitimate non-Latin writer (Arabic, Chinese, Hindi and so on) gets a refusal, where before they got a wrong AI label. A refusal is honest, but this tool still can't help them.
+
 ---
 
 ## What's Still Broken
 
-<!-- For each attack still getting through and each criterion still missed:
-     what you'd do, and why you stopped. -->
+After the improvement and the follow-up fix, 3 of 56 attacks still break (FP05, EV05, PI02), and criteria 2 and 3 are still missed. Most of these trace to the same two weak signals (see Diagnoses), so fixing the signals would clear several at once.
 
+**Attacks still getting through**
 
+- **FP05 (technical documentation, called AI at 0.866):** both signals are high (model 0.80, style 0.93). I'd recalibrate the style thresholds on a larger sample of real human writing, including technical and formal pieces. I stopped because the threshold I moved is already at 0.80, and raising it above 0.87 would let almost all AI text through.
+- **EV05 (heavily edited text, called human at 0.28):** both signals read the edited text as human because they only see surface shape. A threshold can't fix this. It would need a signal that doesn't depend on shape, and I didn't have one.
+- **PI02 (fake "SYSTEM:" prefix, called human at 0.19):** the prefix changes the sentence lengths and pushes the style signal to the human end. I'd compute the style signal after stripping a leading instruction-like line, or reject text that starts with one. I stopped because this was a second change, and the milestone asks for one.
+- **MF06 (emoji) and MF07 (Arabic), called AI at 0.874 and 0.828: fixed in the follow-up fix** (see above). They now return 422 `text_not_supported` instead of an AI label, because `stylometry.py::words` only matches `a-z0-9'` and the route now refuses text with fewer than 3 Latin words.
+
+**Criteria still missed**
+
+- **2 (score spread, gap 0.027):** both signals separate my human and AI texts by very little (0.10 and about zero). I'd try a larger detector model than GPT-2 and recalibrate the style measures on real examples. I stopped because that is a bigger change than one constant, and I ran out of time.
+- **3 (label coverage, "human" never appears; 29 of 30 "unsure" after the change):** the style signal never goes below 0.38 on my texts, so the combined score can't reach the 0.35 human line. Raising `AI_THRESHOLD` made the "unsure" share worse, so this criterion got worse as a direct cost of fixing criterion 1. I'd fix the style calibration first, and only then reconsider the thresholds.
+- **Two criteria I passed are easy:** criterion 4 doesn't check that the original decision stays in the log next to an appeal, and criterion 5 doesn't test the 20,000-character boundary. I'd tighten criterion 4 first.
 
 **The trade I'd make if this ran for real:**
 
-<!-- Two sentences. Fewer wrong accusations means more AI text getting through.
-     Say which way you'd go and WHO PAYS FOR IT. -->
-
-
+I would keep the wide "unsure" band, because telling a real writer their work "may have been written with AI" is the costlier mistake and the appeal path is the only protection they have. The people who pay are the readers and other writers: AI text now mostly gets through as "unsure", so the label stops being a useful warning for them.
 
 <!-- ═════════════════════════════════════════════════════════════════════
 

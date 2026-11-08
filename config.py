@@ -47,6 +47,11 @@ DETECTOR_MODEL = os.getenv("AI201_DETECTOR_MODEL", "gpt2")
 DETECTOR_MAX_TOKENS = 400
 MAX_TEXT_CHARS = 20000
 
+# Fewer Latin-alphabet words than this and the style signal has nothing to measure
+# (emoji, Arabic and punctuation-only text all score as "AI" by default), so /submit
+# refuses the text with a 422 instead of scoring it.
+MIN_LATIN_WORDS = 3
+
 
 # ─── Scoring (Milestone 4) ───────────────────────────────────────────────────
 # How much each signal counts toward the combined score.

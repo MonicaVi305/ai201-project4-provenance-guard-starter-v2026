@@ -221,6 +221,12 @@ def submit():
     import detector
     import stylometry
 
+    if len(stylometry.words(text)) < config.MIN_LATIN_WORDS:
+        return jsonify({"error": "text_not_supported",
+                        "message": "Not enough Latin-alphabet words to assess. "
+                                   "Emoji, punctuation-only and non-Latin scripts "
+                                   "can't be scored."}), 422
+
     try:
         model_score = detector.model_signal(text)
     except ValueError as exc:
